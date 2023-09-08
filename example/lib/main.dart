@@ -1,22 +1,22 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
-import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:flutter_pos_printer_platform/flutter_pos_printer_platform.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const PrintUsbPage());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+class PrintUsbPage extends StatefulWidget {
+  const PrintUsbPage({Key? key}) : super(key: key);
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<PrintUsbPage> createState() => _PrintUsbPageState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _PrintUsbPageState extends State<PrintUsbPage> {
   // Printer Type [bluetooth, usb, network]
   var defaultPrinterType = PrinterType.bluetooth;
   var _isBle = false;
@@ -157,15 +157,44 @@ class _MyAppState extends State<MyApp> {
     setState(() {});
   }
 
+  Future<List<int>> testTicket() async {
+    // Using default profile
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> byte = [];
+
+    byte += generator.text(
+        'Regular: aA bB cC dD eE fF gG hH iI jJ kK lL mM nN oO pP qQ rR sS tT uU vV wW xX yY zZ');
+
+    byte += generator.text('Bold text', styles: const PosStyles(bold: true));
+    byte +=
+        generator.text('Reverse text', styles: const PosStyles(reverse: true));
+    byte += generator.text('Underlined text',
+        styles: const PosStyles(underline: true), linesAfter: 1);
+    byte += generator.text('Align left',
+        styles: const PosStyles(align: PosAlign.left));
+    byte += generator.text('Align center',
+        styles: const PosStyles(align: PosAlign.center));
+    byte += generator.text('Align right',
+        styles: const PosStyles(align: PosAlign.right), linesAfter: 1);
+
+    byte += generator.text(
+      'Text size 200%',
+      styles: const PosStyles(
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+
+    byte += generator.feed(2);
+    byte += generator.cut();
+    return byte;
+  }
+
   Future<void> _printReceiveTest() async {
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm58, profile);
-    List<int> bytes = [];
-
-    bytes += generator.text('Test Print',
-        styles: const PosStyles(align: PosAlign.center));
-    bytes += generator.text('Product 1');
-    bytes += generator.text('Product 2');
+    List<int> bytes = await testTicket();
 
     _printEscPos(bytes, generator);
   }
@@ -180,13 +209,16 @@ class _MyAppState extends State<MyApp> {
         bytes += generator.feed(2);
         bytes += generator.cut();
         await printerManager.connect(
-            type: bluetoothPrinter.typePrinter,
-            model: UsbPrinterInput(
-                name: bluetoothPrinter.deviceName,
-                productId: bluetoothPrinter.productId,
-                vendorId: bluetoothPrinter.vendorId));
-        pendingTask = null;
-        if (Platform.isAndroid) pendingTask = bytes;
+          type: bluetoothPrinter.typePrinter,
+          model: UsbPrinterInput(
+            name: bluetoothPrinter.deviceName,
+            productId: bluetoothPrinter.productId,
+            vendorId: bluetoothPrinter.vendorId,
+          ),
+        );
+        pendingTask = bytes;
+        // pendingTask = null;
+        // if (Platform.isAndroid) pendingTask = bytes;
         break;
       case PrinterType.bluetooth:
         bytes += generator.cut();
@@ -216,8 +248,7 @@ class _MyAppState extends State<MyApp> {
         printerManager.send(type: bluetoothPrinter.typePrinter, bytes: bytes);
         pendingTask = null;
       }
-    } else if (bluetoothPrinter.typePrinter == PrinterType.usb &&
-        Platform.isAndroid) {
+    } else if (bluetoothPrinter.typePrinter == PrinterType.usb) {
       // _currentUsbStatus is only supports on Android
       if (_currentUsbStatus == USBStatus.connected) {
         printerManager.send(type: bluetoothPrinter.typePrinter, bytes: bytes);
@@ -299,9 +330,11 @@ class _MyAppState extends State<MyApp> {
                             onPressed: selectedPrinter == null || !_isConnected
                                 ? null
                                 : () {
-                                    if (selectedPrinter != null)
+                                    if (selectedPrinter != null) {
                                       printerManager.disconnect(
-                                          type: selectedPrinter!.typePrinter);
+                                        type: selectedPrinter!.typePrinter,
+                                      );
+                                    }
                                     setState(() {
                                       _isConnected = false;
                                     });
@@ -486,15 +519,20 @@ class _MyAppState extends State<MyApp> {
                       padding: const EdgeInsets.only(top: 10.0),
                       child: OutlinedButton(
                         onPressed: () async {
-                          if (_ipController.text.isNotEmpty)
+                          if (_ipController.text.isNotEmpty) {
                             setIpAddress(_ipController.text);
+                          }
                           _printReceiveTest();
                         },
                         child: const Padding(
-                          padding:
-                              EdgeInsets.symmetric(vertical: 4, horizontal: 50),
-                          child: Text("Print test ticket",
-                              textAlign: TextAlign.center),
+                          padding: EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 50,
+                          ),
+                          child: Text(
+                            "Print test ticket",
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ),

@@ -11,12 +11,8 @@ dependencies:
 
   flutter_pos_printer_platform:
     path: ../
-
   cupertino_icons: ^1.0.6
-
-  esc_pos_utils:
-    git:
-      url: https://github.com/SunnatilloShavkatov/esc_pos_utils.git
+  flutter_esc_pos_utils: ^1.0.0
 
 dev_dependencies:
   flutter_test:
